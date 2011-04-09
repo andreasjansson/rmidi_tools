@@ -1,0 +1,8 @@
+~~~ RMidi Tools ~~~
+
+This repo provides a number of functions for working with music and
+MIDI within R, using the RMidi package.
+
+The best way of using these tools is to explore the source and try
+things out. I write about some of the functions on
+http://rootnote.blogspot.com
