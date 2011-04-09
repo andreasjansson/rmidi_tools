@@ -27,15 +27,17 @@ library("rmidi")
 ## Note that the melody is simply taken modulo 12, and since midi note
 ## 0 is an E flat, index 0 in the returned chroma corresponds to E flat,
 ## index 1 to E, etc.
-extract.chroma.melody <- function(melody)
+extract.chroma.melody <- function(melody, skew = TRUE)
 {
   pitches <- melody %% 12
-  chroma <- integer(12)
+  chroma <- numeric(12)
   for(i in 0:11) {
     chroma[i + 1] <- sum(pitches == i)
   }
-  # make high values closer
-  chroma <- (chroma / max(chroma)) ^ (1/4)
+  if(skew) {
+    # make high values closer
+    chroma <- (chroma / max(chroma)) ^ (1/4)
+  }
   return(chroma)
 }
 
