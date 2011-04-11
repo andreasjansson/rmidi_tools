@@ -20,7 +20,7 @@
 library("rmidi")
 
 ## Meter detection by autocorrelation of inter-onset intervals,
-## inspired by J. C. "Determination of the meter of musical scores
+## inspired by J. C. Brown "Determination of the meter of musical scores
 ## by autocorrelation", 1993.
 extract.meter <- function(mat, min.subdiv = .25)
 {
