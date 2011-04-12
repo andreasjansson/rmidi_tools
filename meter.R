@@ -26,7 +26,9 @@ extract.meter <- function(mat, min.subdiv = .25)
 {
   # quantise to min.subdiv (default == semiquavers)
   notes <- midi.to.notes(mat)
-  notes <- quantise(notes, min.subdiv)
+  notes <- quantise(notes, min.subdiv, FALSE)
+
+  midi.play(notes.to.midi(notes))
 
   # build ioi sequence
   ioi.seq <- integer(max(notes[, "start"]) /
@@ -35,13 +37,21 @@ extract.meter <- function(mat, min.subdiv = .25)
     notes[, "duration"]
 
   # get the autocorrelation
-  ioi.acf <- acf(ioi.seq, length(ioi.seq), plot = FALSE)$acf
+  ioi.acf <- as.numeric(acf(ioi.seq, length(ioi.seq), plot = TRUE)$acf)
+
+  # UNDOC, todo
+  ioi2 <- ioi.acf * (function(x) { ifelse(x > 0, 1, 0) })(ioi.acf)
+  ioi2 <- data.frame(x = 1:length(ioi2), y = ioi2)
+  linmod <- lm(y ~ x, ioi2)
+  peaks <- s.peaks(ioi2[, 2] - 1:nrow(ioi2) * linmod$coefficients[2], 10)
 
   # find peaks by going backwards (acf is decreasing)
-  peaks <- unique(cummax(rev(ioi.acf)))
-  peaks.indices <- sort(unlist(lapply(peaks, function(peak) {
-    which(ioi.acf == peak)
-  })))
+#  peaks <- unique(cummax(rev(ioi.acf)))
+#  peaks.indices <- sort(unlist(lapply(peaks, function(peak) {
+#    which(ioi.acf == peak)
+#  })))
+
+  peaks.indices <- which(peaks)
 
   # find the most common distance between peaks
   distances <- diff(peaks.indices)
@@ -52,3 +62,13 @@ extract.meter <- function(mat, min.subdiv = .25)
   meter <- distances.mode * min.subdiv
   return(meter)
 }
+
+s.peaks<-function(series,span=3) 
+{ 
+  z <- embed(series, span) 
+  s <- span%/%2 
+  v<- max.col(z) == 1 + s 
+  result <- c(rep(FALSE,s),v) 
+  result <- result[1:(length(result)-s)] 
+  result 
+} 
