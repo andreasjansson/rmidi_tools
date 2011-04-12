@@ -28,8 +28,6 @@ extract.meter <- function(mat, min.subdiv = .25)
   notes <- midi.to.notes(mat)
   notes <- quantise(notes, min.subdiv, FALSE)
 
-  midi.play(notes.to.midi(notes))
-
   # build ioi sequence
   ioi.seq <- integer(max(notes[, "start"]) /
                      (midi.get.ppq() * min.subdiv) + 1)
@@ -39,18 +37,8 @@ extract.meter <- function(mat, min.subdiv = .25)
   # get the autocorrelation
   ioi.acf <- as.numeric(acf(ioi.seq, length(ioi.seq), plot = TRUE)$acf)
 
-  # UNDOC, todo
-  ioi2 <- ioi.acf * (function(x) { ifelse(x > 0, 1, 0) })(ioi.acf)
-  ioi2 <- data.frame(x = 1:length(ioi2), y = ioi2)
-  linmod <- lm(y ~ x, ioi2)
-  peaks <- s.peaks(ioi2[, 2] - 1:nrow(ioi2) * linmod$coefficients[2], 10)
-
-  # find peaks by going backwards (acf is decreasing)
-#  peaks <- unique(cummax(rev(ioi.acf)))
-#  peaks.indices <- sort(unlist(lapply(peaks, function(peak) {
-#    which(ioi.acf == peak)
-#  })))
-
+  # find peaks using R port of S+ peaks function
+  peaks <- s.peaks(ioi.acf, 10)
   peaks.indices <- which(peaks)
 
   # find the most common distance between peaks
@@ -63,6 +51,10 @@ extract.meter <- function(mat, min.subdiv = .25)
   return(meter)
 }
 
+# R port of S+ peaks function,
+# http://finzi.psych.upenn.edu/R/Rhelp02a/archive/33097.html
+# Brian Ripley (author) claims that span needs to be odd, but
+# oddly enough I found that span = 10 renders the best results.
 s.peaks<-function(series,span=3) 
 { 
   z <- embed(series, span) 
