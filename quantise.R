@@ -20,10 +20,10 @@
 library("rmidi")
 
 ## Convenience function, which also illustrates common usage.
-midi.quantise <- function(mat, subdiv, preserve.duration = TRUE)
+midi.quantise <- function(mat, subdiv, offset = 0, preserve.duration = TRUE)
 {
   notes <- midi.to.notes(mat)
-  quantised.notes <- quantise.notes(notes, subdiv, preserve.duration)
+  quantised.notes <- quantise.notes(notes, subdiv, offset, preserve.duration)
   quantised.matrix <- notes.to.midi(quantised.notes)
 
   return(quantised.matrix)
@@ -64,45 +64,73 @@ notes.to.midi <- function(notes)
 
 ## Quantise a monophonic melody to a set minimum subdivision (in crotchets).
 ## This is achieved by first rounding start times, and then resolving
-## collisions. If two or more notes in the rounded matrix end up with
+## collisions.
+##
+## If two or more notes in the rounded matrix end up with
 ## equal start times, the note that was closest to the quantised time
 ## in the original matrix will be chosen as the note to keep in the
 ## quantised matrix. If two notes are equally close (i.e. one up and one
 ## down), then lower one will be chosen.
+##
+## Offset provides a way to hangle upbeats, by offsetting quantisation.
+## This paramater is also given in crotchets.
+## 
 ## If preserve.duration is FALSE, notes will be stretched to the next
 ## note. The last note duration will be stretched so that the quantised
 ## melody is the same length as the input melody.
-quantise.notes <- function(notes, subdiv, preserve.duration = TRUE)
+quantise.notes <- function(notes, subdiv, offset = 0,
+                           preserve.duration = TRUE)
 {
   if(subdiv == 0)
     return(notes)
 
+  # first, do "naive" quantising, by just rounding start times
   subdiv.ticks <- subdiv * midi.get.ppq()
+  offset.ticks <- offset * midi.get.ppq()
   notes.quantised <- notes
-  notes.quantised[, 1] <- round(notes.quantised[, 1] / subdiv.ticks) *
-    subdiv.ticks
+  notes.quantised[, "start"] <-
+    round((notes.quantised[, "start"] - offset.ticks) /
+          subdiv.ticks) * subdiv.ticks + offset.ticks
 
-  tbl <- sort(table(notes.quantised[, 1]))
+  # find any collisions
+  tbl <- sort(table(notes.quantised[, "start"]))
   collisions <- as.numeric(names(tbl[tbl > 1]))
+
+  # if there are collisions, remove all notes that are not the note
+  # closest to the quantised value
   if(length(collisions) > 0) {
     remove.indices <- integer(0)
     for(collision in collisions) {
-      colliding.indices <- which(notes.quantised[, 1] == collision)
-      distances <- abs(notes[, 1] - collision)
+      colliding.indices <- which(notes.quantised[, "start"] == collision)
+      distances <- abs(notes[, "start"] - collision)
+
+      # if two colliding notes are equally close, use the lower one
       closest.index <- which(distances == min(distances))[1]
+
       remove.indices <- c(remove.indices,
                           colliding.indices[colliding.indices !=
                                             closest.index])
     }
+
+    # remove colliding notes
     notes.quantised <- notes.quantised[-remove.indices, ]
-    notes.quantised <- notes.quantised[order(notes.quantised[, 1]), ]
   }
 
+  # if we don't preserve the original durations, we tie the notes
   if(!preserve.duration) {
+
+    # order notes by start time
+    notes.quantised <- notes.quantised[order(notes.quantised[, "start"]), ]
+
+    # tie all notes except last note
     for(i in 1:(nrow(notes.quantised) - 1)) {
       notes.quantised[i, "duration"] <- notes.quantised[i + 1, "start"] -
         notes.quantised[i, "start"]
     }
+
+    # set the duration of the last note such that the duration of
+    # the quantised melody is the same as the duration of the
+    # original melody
     notes.quantised[nrow(notes.quantised), "duration"] <-
       notes[nrow(notes), "duration"] + notes[nrow(notes), "start"] -
         notes.quantised[nrow(notes.quantised), "start"]
