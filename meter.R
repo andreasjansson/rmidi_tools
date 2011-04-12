@@ -35,7 +35,7 @@ extract.meter <- function(mat, min.subdiv = .25)
     notes[, "duration"]
 
   # get the autocorrelation
-  ioi.acf <- as.numeric(acf(ioi.seq, length(ioi.seq), plot = TRUE)$acf)
+  ioi.acf <- as.numeric(acf(ioi.seq, length(ioi.seq), plot = FALSE)$acf)
 
   # find peaks using R port of S+ peaks function
   peaks <- s.peaks(ioi.acf, 10)
